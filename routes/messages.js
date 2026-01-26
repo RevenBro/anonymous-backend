@@ -1,53 +1,86 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
 const Message = require('../models/Message');
 const authMiddleware = require('../middleware/authMiddleware');
 
+// Auth middleware qo'llash
 router.use(authMiddleware);
 
-// Dashboard statistikasi
-router.get('/dashboard', async (req, res) => {
+// Barcha xabarlarni olish
+router.get('/', async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalMessages = await Message.countDocuments({ isDeleted: false });
+    const { page = 1, limit = 20, recipientId, startDate, endDate } = req.query;
     
-    // Bugungi faol foydalanuvchilar
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const query = { isDeleted: false };
     
-    const activeToday = await Message.distinct('recipientId', {
-      timestamp: { $gte: today }
-    });
+    if (recipientId) query.recipientId = parseInt(recipientId);
+    if (startDate || endDate) {
+      query.timestamp = {};
+      if (startDate) query.timestamp.$gte = new Date(startDate);
+      if (endDate) query.timestamp.$lte = new Date(endDate);
+    }
 
-    // Kunlik xabar faoliyati (oxirgi 7 kun)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const dailyActivity = await Message.aggregate([
-      {
-        $match: {
-          timestamp: { $gte: sevenDaysAgo },
-          isDeleted: false
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+    const messages = await Message.find(query)
+      .sort({ timestamp: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Message.countDocuments(query);
 
     res.json({
-      totalUsers,
-      totalMessages,
-      activeToday: activeToday.length,
-      dailyActivity
+      messages,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      total
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server xatosi', error });
+    console.error('Messages GET error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Xabarni flag qilish
+router.patch('/:messageId/flag', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const { isFlagged } = req.body;
+
+    const message = await Message.findByIdAndUpdate(
+      messageId,
+      { isFlagged },
+      { new: true }
+    );
+
+    if (!message) {
+      return res.status(404).json({ message: 'Xabar topilmadi' });
+    }
+
+    res.json({ message: 'Muvaffaqiyatli yangilandi', data: message });
+  } catch (error) {
+    console.error('Flag error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Xabarni o'chirish
+router.delete('/:messageId', async (req, res) => {
+  try {
+    const { messageId } = req.params;
+
+    const message = await Message.findByIdAndUpdate(
+      messageId,
+      { isDeleted: true },
+      { new: true }
+    );
+
+    if (!message) {
+      return res.status(404).json({ message: 'Xabar topilmadi' });
+    }
+
+    res.json({ message: 'Xabar o\'chirildi', data: message });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
 

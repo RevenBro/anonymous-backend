@@ -14,14 +14,11 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB ulanish
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
+mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('✅ Backend MongoDB ulandi'))
   .catch(err => console.error('❌ MongoDB xatosi:', err));
 
-// Routes
+// Routes - FAQAT BIR MARTA!
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const messagesRoutes = require('./routes/messages');

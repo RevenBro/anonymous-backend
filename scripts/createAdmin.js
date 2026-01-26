@@ -9,7 +9,7 @@ async function createAdmin() {
     console.log('MongoDB ulandi...');
 
     const username = 'admin';
-    const password = 'admin123'; // O'zgartiring!
+    const password = 'admin1234'; // O'zgartiring!
     const email = 'admin@example.com';
 
     // Parolni hash qilish
