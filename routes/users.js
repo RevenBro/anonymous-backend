@@ -6,48 +6,110 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 router.use(authMiddleware);
 
-// Dashboard statistikasi
-router.get('/dashboard', async (req, res) => {
+// Barcha foydalanuvchilarni olish
+router.get('/', async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalMessages = await Message.countDocuments({ isDeleted: false });
+    const { page = 1, limit = 20, search = '' } = req.query;
     
-    // Bugungi faol foydalanuvchilar
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const activeToday = await Message.distinct('recipientId', {
-      timestamp: { $gte: today }
-    });
+    const query = search 
+      ? { 
+          $or: [
+            { username: { $regex: search, $options: 'i' } },
+            { firstName: { $regex: search, $options: 'i' } },
+            { lastName: { $regex: search, $options: 'i' } }
+          ]
+        }
+      : {};
 
-    // Kunlik xabar faoliyati (oxirgi 7 kun)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
-    const dailyActivity = await Message.aggregate([
-      {
-        $match: {
-          timestamp: { $gte: sevenDaysAgo },
+    const users = await User.find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await User.countDocuments(query);
+
+    // Har bir foydalanuvchi uchun xabarlar sonini hisoblash
+    const usersWithMessages = await Promise.all(
+      users.map(async (user) => {
+        const messageCount = await Message.countDocuments({
+          recipientId: user.telegramId,
           isDeleted: false
-        }
-      },
-      {
-        $group: {
-          _id: { $dateToString: { format: "%Y-%m-%d", date: "$timestamp" } },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ]);
+        });
+        return {
+          ...user.toObject(),
+          receivedMessages: messageCount
+        };
+      })
+    );
 
     res.json({
-      totalUsers,
-      totalMessages,
-      activeToday: activeToday.length,
-      dailyActivity
+      users: usersWithMessages,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      total
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server xatosi', error });
+    console.error('Users GET error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Foydalanuvchini bloklash/blokdan chiqarish
+router.patch('/:userId/block', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { isBlocked } = req.body;
+
+    const user = await User.findOneAndUpdate(
+      { telegramId: parseInt(userId) },
+      { isBlocked },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
+    }
+
+    res.json({ 
+      message: 'Muvaffaqiyatli yangilandi', 
+      user 
+    });
+  } catch (error) {
+    console.error('Block error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
+  }
+});
+
+// Foydalanuvchi tafsilotlari
+router.get('/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const user = await User.findOne({ telegramId: parseInt(userId) });
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
+    }
+
+    // Foydalanuvchi xabarlari
+    const messages = await Message.find({
+      recipientId: parseInt(userId),
+      isDeleted: false
+    }).sort({ timestamp: -1 }).limit(10);
+
+    const messageCount = await Message.countDocuments({
+      recipientId: parseInt(userId),
+      isDeleted: false
+    });
+
+    res.json({
+      user,
+      messages,
+      messageCount
+    });
+  } catch (error) {
+    console.error('User detail error:', error);
+    res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
 
