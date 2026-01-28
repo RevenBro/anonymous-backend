@@ -23,11 +23,13 @@ const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const messagesRoutes = require('./routes/messages');
 const statsRoutes = require('./routes/stats');
+const premiumRoutes = require('./routes/premium');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/premium', premiumRoutes);
 
 // Test route
 app.get('/', (req, res) => {

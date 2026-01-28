@@ -27,6 +27,20 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  // ✅ PREMIUM FIELDS - BU YERDA BO'LISHI KERAK!
+  isPremium: {
+    type: Boolean,
+    default: false
+  },
+  premiumUntil: {
+    type: Date,
+    default: null
+  },
+  premiumType: {
+    type: String,
+    enum: ['daily', 'weekly', 'monthly', 'unlimited', null],
+    default: null
+  },
   createdAt: {
     type: Date,
     default: Date.now
