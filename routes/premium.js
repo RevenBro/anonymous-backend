@@ -52,6 +52,8 @@ router.post('/grant', async (req, res) => {
   try {
     const { userId, days, customMessage } = req.body;
 
+    console.log('📥 Premium berish so\'rovi:', { userId, days, customMessage });
+
     if (!userId || !days) {
       return res.status(400).json({ message: 'userId va days majburiy!' });
     }
@@ -61,6 +63,8 @@ router.post('/grant', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
     }
+
+    console.log('👤 User topildi:', user.telegramId, user.firstName);
 
     // Premium muddat hisoblash
     const premiumUntil = new Date();
@@ -81,9 +85,30 @@ router.post('/grant', async (req, res) => {
     user.premiumType = premiumType;
     await user.save();
 
-    // TODO: Bot orqali xabar yuborish
-    // Bu qismni keyinchalik bot instance bilan qilishimiz mumkin
-    // Hozircha faqat database'da saqlash
+    console.log('✅ Premium berildi:', user.telegramId, premiumType, premiumUntil);
+
+    // Bot orqali xabar yuborish
+    try {
+      // Bot instance'ni olish (agar mavjud bo'lsa)
+      const botModule = require('../bot-integration');
+      
+      if (botModule && botModule.sendMessage) {
+        const message = customMessage || 
+          `🎉 Tabriklaymiz!\n\n` +
+          `Sizga ${days} kunlik Premium hadya qilindi!\n\n` +
+          `💎 Premium imkoniyatlar:\n` +
+          `✅ Cheksiz xabar yuborish\n` +
+          `✅ Reklama yo'q\n` +
+          `✅ Maxfiylik darajasi yuqori\n\n` +
+          `📅 Amal qilish muddati: ${premiumUntil.toLocaleDateString('uz-UZ')}`;
+        
+        await botModule.sendMessage(userId, message);
+        console.log('📨 Xabar yuborildi:', userId);
+      }
+    } catch (botError) {
+      console.error('⚠️ Bot orqali xabar yuborib bo\'lmadi:', botError.message);
+      // Bu xato asosiy jarayonni to'xtatmasin
+    }
 
     res.json({ 
       message: 'Premium muvaffaqiyatli berildi!',
@@ -97,7 +122,7 @@ router.post('/grant', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Grant premium error:', error);
+    console.error('❌ Grant premium error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
@@ -122,6 +147,8 @@ router.post('/revoke', async (req, res) => {
     user.premiumType = null;
     await user.save();
 
+    console.log('🚫 Premium bekor qilindi:', userId);
+
     res.json({ 
       message: 'Premium bekor qilindi!',
       user: {
@@ -133,47 +160,6 @@ router.post('/revoke', async (req, res) => {
 
   } catch (error) {
     console.error('Revoke premium error:', error);
-    res.status(500).json({ message: 'Server xatosi', error: error.message });
-  }
-});
-
-// Premium muddat uzaytirish
-router.post('/extend', async (req, res) => {
-  try {
-    const { userId, days } = req.body;
-
-    if (!userId || !days) {
-      return res.status(400).json({ message: 'userId va days majburiy!' });
-    }
-
-    const user = await User.findOne({ telegramId: parseInt(userId) });
-    
-    if (!user) {
-      return res.status(404).json({ message: 'Foydalanuvchi topilmadi' });
-    }
-
-    if (!user.isPremium) {
-      return res.status(400).json({ message: 'Foydalanuvchi premium emas!' });
-    }
-
-    // Joriy muddatga qo'shish
-    const currentDate = user.premiumUntil || new Date();
-    currentDate.setDate(currentDate.getDate() + parseInt(days));
-    
-    user.premiumUntil = currentDate;
-    await user.save();
-
-    res.json({ 
-      message: 'Premium muddat uzaytirildi!',
-      user: {
-        telegramId: user.telegramId,
-        firstName: user.firstName,
-        premiumUntil: user.premiumUntil
-      }
-    });
-
-  } catch (error) {
-    console.error('Extend premium error:', error);
     res.status(500).json({ message: 'Server xatosi', error: error.message });
   }
 });
