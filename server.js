@@ -1,48 +1,60 @@
+// backend/server.js
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const connectDB = require('../shared/config/database');
 
-// .env faylini yuklash
+// ✅ SHARED DATABASE CONNECTION
+// const connectDB = require('../shared/config/database');
+
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// MongoDB ulanish
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ Backend MongoDB ulandi'))
-  .catch(err => console.error('❌ MongoDB xatosi:', err));
+// ✅ Database connection
+connectDB();
 
-// Routes - FAQAT BIR MARTA!
+// Routes
 const authRoutes = require('./routes/auth');
-const usersRoutes = require('./routes/users');
-const messagesRoutes = require('./routes/messages');
+const userRoutes = require('./routes/users');
+const messageRoutes = require('./routes/messages');
 const statsRoutes = require('./routes/stats');
 const premiumRoutes = require('./routes/premium');
 
 app.use('/api/auth', authRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/messages', messagesRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/messages', messageRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/premium', premiumRoutes);
 
-// Test route
-app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Anonymous Bot Admin API',
-    status: 'Ishlamoqda ✅'
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    status: '✅ Backend ishlayapti',
+    timestamp: new Date().toISOString(),
+    database: 'Connected'
   });
 });
 
-// Serverni ishga tushirish
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    message: 'Server xatosi',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal error'
+  });
+});
+
+const PORT = process.env.BACKEND_PORT || 5000;
+
 app.listen(PORT, () => {
-  console.log(`🚀 Backend server ${PORT} portda ishlamoqda`);
-  console.log(`📡 API: http://localhost:${PORT}`);
+  console.log(`🚀 Backend server running on port ${PORT}`);
+  console.log(`📊 Database: Shared MongoDB (Bot va Backend uchun)`);
 });
 
 module.exports = app;
