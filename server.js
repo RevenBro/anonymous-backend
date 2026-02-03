@@ -2,10 +2,9 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const connectDB = require('../shared/config/database');
+const { connectDB, User, Message } = require('@revencoder/anonymous-shared');
 
 // ✅ SHARED DATABASE CONNECTION
-// const connectDB = require('../shared/config/database');
 
 dotenv.config();
 
