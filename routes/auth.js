@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-const Admin = require('../models/Admin');
+const { Admin } = require('@revencoder/anonymous-shared');
 
 // Login
 router.post('/login', async (req, res) => {

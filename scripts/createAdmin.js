@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const Admin = require('../models/Admin');
+const { Admin } = require('@revencoder/anonymous-shared');
 require('dotenv').config();
 
 async function createAdmin() {

@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
-const Message = require('../models/Message');
+const { Message, User } = require('@revencoder/anonymous-shared');
 const authMiddleware = require('../middleware/authMiddleware');
 
 router.use(authMiddleware);
